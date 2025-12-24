@@ -2,8 +2,11 @@ import os
 
 import typer
 
+import uvicorn
+
 from mcp_email_server.app import mcp
 from mcp_email_server.config import delete_settings
+from mcp_email_server.server import create_starlette
 
 app = typer.Typer()
 
@@ -20,7 +23,11 @@ def sse(
 ):
     mcp.settings.host = host
     mcp.settings.port = port
-    mcp.run(transport="sse")
+    mcp.settings.sse_path = "/"
+    # mcp.run(transport="sse")
+
+    starlette_app = create_starlette(mcp, "/sse", mcp.sse_app())
+    uvicorn.run(starlette_app, host=host, port=port)
 
 
 @app.command()
@@ -30,7 +37,11 @@ def streamable_http(
 ):
     mcp.settings.host = host
     mcp.settings.port = port
-    mcp.run(transport="streamable-http")
+    mcp.settings.streamable_http_path = "/"
+    # mcp.run(transport="streamable-http")
+
+    starlette_app = create_starlette(mcp, "/mcp", mcp.streamable_http_app())
+    uvicorn.run(starlette_app, host=host, port=port)
 
 
 @app.command()
