@@ -12,45 +12,45 @@ def test_from_env_missing_email_and_password(monkeypatch):
     assert result is None
 
     # Only email, no password
-    monkeypatch.setenv("MCP_EMAIL_SERVER_EMAIL_ADDRESS", "test@example.com")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_EMAIL_ADDRESS", "test@example.com")
     result = EmailSettings.from_env()
     assert result is None
 
     # Only password, no email
-    monkeypatch.delenv("MCP_EMAIL_SERVER_EMAIL_ADDRESS", raising=False)
-    monkeypatch.setenv("MCP_EMAIL_SERVER_PASSWORD", "pass")
+    monkeypatch.delenv("MCP_EMAIL_ACCOUNT_EMAIL_ADDRESS", raising=False)
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_PASSWORD", "pass")
     result = EmailSettings.from_env()
     assert result is None
 
 
 def test_from_env_missing_hosts_warning(monkeypatch):
     """Test logger.warning for missing hosts - covers lines 154-156."""
-    monkeypatch.setenv("MCP_EMAIL_SERVER_EMAIL_ADDRESS", "test@example.com")
-    monkeypatch.setenv("MCP_EMAIL_SERVER_PASSWORD", "pass")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_EMAIL_ADDRESS", "test@example.com")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_PASSWORD", "pass")
 
     # Missing both hosts
     result = EmailSettings.from_env()
     assert result is None
 
     # Missing SMTP host
-    monkeypatch.setenv("MCP_EMAIL_SERVER_IMAP_HOST", "imap.test.com")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_IMAP_HOST", "imap.test.com")
     result = EmailSettings.from_env()
     assert result is None
 
     # Missing IMAP host
-    monkeypatch.delenv("MCP_EMAIL_SERVER_IMAP_HOST")
-    monkeypatch.setenv("MCP_EMAIL_SERVER_SMTP_HOST", "smtp.test.com")
+    monkeypatch.delenv("MCP_EMAIL_ACCOUNT_IMAP_HOST")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_SMTP_HOST", "smtp.test.com")
     result = EmailSettings.from_env()
     assert result is None
 
 
 def test_from_env_exception_handling(monkeypatch):
     """Test exception handling in try/except - covers lines 177-179."""
-    monkeypatch.setenv("MCP_EMAIL_SERVER_EMAIL_ADDRESS", "test@example.com")
-    monkeypatch.setenv("MCP_EMAIL_SERVER_PASSWORD", "pass")
-    monkeypatch.setenv("MCP_EMAIL_SERVER_IMAP_HOST", "imap.test.com")
-    monkeypatch.setenv("MCP_EMAIL_SERVER_SMTP_HOST", "smtp.test.com")
-    monkeypatch.setenv("MCP_EMAIL_SERVER_IMAP_PORT", "invalid")  # Will cause ValueError
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_EMAIL_ADDRESS", "test@example.com")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_PASSWORD", "pass")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_IMAP_HOST", "imap.test.com")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_SMTP_HOST", "smtp.test.com")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_IMAP_PORT", "invalid")  # Will cause ValueError
 
     result = EmailSettings.from_env()
     assert result is None
@@ -58,40 +58,41 @@ def test_from_env_exception_handling(monkeypatch):
 
 def test_from_env_success_with_all_defaults(monkeypatch):
     """Test successful creation with defaults - covers lines 147-176."""
-    monkeypatch.setenv("MCP_EMAIL_SERVER_EMAIL_ADDRESS", "user@example.com")
-    monkeypatch.setenv("MCP_EMAIL_SERVER_PASSWORD", "pass")
-    monkeypatch.setenv("MCP_EMAIL_SERVER_IMAP_HOST", "imap.example.com")
-    monkeypatch.setenv("MCP_EMAIL_SERVER_SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_EMAIL_ADDRESS", "user@example.com")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_PASSWORD", "pass")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_IMAP_HOST", "imap.example.com")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_SMTP_HOST", "smtp.example.com")
 
     result = EmailSettings.from_env()
     assert result is not None
-    assert result.account_name == "default"
-    assert result.full_name == "user"
-    assert result.email_address == "user@example.com"
-    assert result.incoming.user_name == "user@example.com"
-    assert result.incoming.port == 993
-    assert result.outgoing.port == 465
+    assert len(result) == 1
+    assert result[0].account_name == "default"
+    assert result[0].full_name == "user"
+    assert result[0].email_address == "user@example.com"
+    assert result[0].incoming.user_name == "user@example.com"
+    assert result[0].incoming.port == 993
+    assert result[0].outgoing.port == 465
 
 
 def test_from_env_with_all_vars_set(monkeypatch):
     """Test with all environment variables set - covers parse_bool branches."""
     env_vars = {
-        "MCP_EMAIL_SERVER_ACCOUNT_NAME": "myaccount",
-        "MCP_EMAIL_SERVER_FULL_NAME": "John Doe",
-        "MCP_EMAIL_SERVER_EMAIL_ADDRESS": "john@example.com",
-        "MCP_EMAIL_SERVER_USER_NAME": "johnuser",
-        "MCP_EMAIL_SERVER_PASSWORD": "pass123",
-        "MCP_EMAIL_SERVER_IMAP_HOST": "imap.example.com",
-        "MCP_EMAIL_SERVER_IMAP_PORT": "143",
-        "MCP_EMAIL_SERVER_IMAP_SSL": "false",
-        "MCP_EMAIL_SERVER_SMTP_HOST": "smtp.example.com",
-        "MCP_EMAIL_SERVER_SMTP_PORT": "587",
-        "MCP_EMAIL_SERVER_SMTP_SSL": "no",
-        "MCP_EMAIL_SERVER_SMTP_START_SSL": "yes",
-        "MCP_EMAIL_SERVER_IMAP_USER_NAME": "imap_john",
-        "MCP_EMAIL_SERVER_IMAP_PASSWORD": "imap_pass",
-        "MCP_EMAIL_SERVER_SMTP_USER_NAME": "smtp_john",
-        "MCP_EMAIL_SERVER_SMTP_PASSWORD": "smtp_pass",
+        "MCP_EMAIL_ACCOUNT_ACCOUNT_NAME": "myaccount",
+        "MCP_EMAIL_ACCOUNT_FULL_NAME": "John Doe",
+        "MCP_EMAIL_ACCOUNT_EMAIL_ADDRESS": "john@example.com",
+        "MCP_EMAIL_ACCOUNT_USER_NAME": "johnuser",
+        "MCP_EMAIL_ACCOUNT_PASSWORD": "pass123",
+        "MCP_EMAIL_ACCOUNT_IMAP_HOST": "imap.example.com",
+        "MCP_EMAIL_ACCOUNT_IMAP_PORT": "143",
+        "MCP_EMAIL_ACCOUNT_IMAP_SSL": "false",
+        "MCP_EMAIL_ACCOUNT_SMTP_HOST": "smtp.example.com",
+        "MCP_EMAIL_ACCOUNT_SMTP_PORT": "587",
+        "MCP_EMAIL_ACCOUNT_SMTP_SSL": "no",
+        "MCP_EMAIL_ACCOUNT_SMTP_START_SSL": "yes",
+        "MCP_EMAIL_ACCOUNT_IMAP_USER_NAME": "imap_john",
+        "MCP_EMAIL_ACCOUNT_IMAP_PASSWORD": "imap_pass",
+        "MCP_EMAIL_ACCOUNT_SMTP_USER_NAME": "smtp_john",
+        "MCP_EMAIL_ACCOUNT_SMTP_PASSWORD": "smtp_pass",
     }
 
     for key, value in env_vars.items():
@@ -99,26 +100,27 @@ def test_from_env_with_all_vars_set(monkeypatch):
 
     result = EmailSettings.from_env()
     assert result is not None
-    assert result.account_name == "myaccount"
-    assert result.full_name == "John Doe"
-    assert result.incoming.user_name == "imap_john"
-    assert result.incoming.password == "imap_pass"  # noqa: S105
-    assert result.incoming.port == 143
-    assert result.incoming.use_ssl is False
-    assert result.outgoing.user_name == "smtp_john"
-    assert result.outgoing.password == "smtp_pass"  # noqa: S105
-    assert result.outgoing.port == 587
-    assert result.outgoing.use_ssl is False
-    assert result.outgoing.start_ssl is True
+    assert len(result) == 1
+    assert result[0].account_name == "myaccount"
+    assert result[0].full_name == "John Doe"
+    assert result[0].incoming.user_name == "imap_john"
+    assert result[0].incoming.password == "imap_pass"  # noqa: S105
+    assert result[0].incoming.port == 143
+    assert result[0].incoming.use_ssl is False
+    assert result[0].outgoing.user_name == "smtp_john"
+    assert result[0].outgoing.password == "smtp_pass"  # noqa: S105
+    assert result[0].outgoing.port == 587
+    assert result[0].outgoing.use_ssl is False
+    assert result[0].outgoing.start_ssl is True
 
 
 def test_from_env_boolean_parsing_variations(monkeypatch):
     """Test various boolean value parsing - covers parse_bool function."""
     base_env = {
-        "MCP_EMAIL_SERVER_EMAIL_ADDRESS": "test@example.com",
-        "MCP_EMAIL_SERVER_PASSWORD": "pass",
-        "MCP_EMAIL_SERVER_IMAP_HOST": "imap.test.com",
-        "MCP_EMAIL_SERVER_SMTP_HOST": "smtp.test.com",
+        "MCP_EMAIL_ACCOUNT_EMAIL_ADDRESS": "test@example.com",
+        "MCP_EMAIL_ACCOUNT_PASSWORD": "pass",
+        "MCP_EMAIL_ACCOUNT_IMAP_HOST": "imap.test.com",
+        "MCP_EMAIL_ACCOUNT_SMTP_HOST": "smtp.test.com",
     }
 
     # Test "1" = true
@@ -128,16 +130,20 @@ def test_from_env_boolean_parsing_variations(monkeypatch):
         monkeypatch.setenv(key, value)
 
     result = EmailSettings.from_env()
-    assert result.incoming.use_ssl is True
-    assert result.outgoing.use_ssl is False
+    assert result is not None
+    assert len(result) == 1
+    assert result[0].incoming.use_ssl is True
+    assert result[0].outgoing.use_ssl is False
 
     # Test "on"/"off"
-    monkeypatch.setenv("MCP_EMAIL_SERVER_IMAP_SSL", "on")
-    monkeypatch.setenv("MCP_EMAIL_SERVER_SMTP_START_SSL", "off")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_IMAP_SSL", "on")
+    monkeypatch.setenv("MCP_EMAIL_ACCOUNT_SMTP_START_SSL", "off")
 
     result = EmailSettings.from_env()
-    assert result.incoming.use_ssl is True
-    assert result.outgoing.start_ssl is False
+    assert result is not None
+    assert len(result) == 1
+    assert result[0].incoming.use_ssl is True
+    assert result[0].outgoing.start_ssl is False
 
 
 def test_settings_init_no_env(monkeypatch, tmp_path):
