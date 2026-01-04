@@ -26,6 +26,52 @@ from mcp_email_server.emails.models import (
 from mcp_email_server.log import logger
 
 
+def _quote_mailbox(mailbox: str) -> str:
+    """Quote mailbox name for IMAP compatibility.
+
+    Some IMAP servers (notably Proton Mail Bridge) require mailbox names
+    to be quoted. This is valid per RFC 3501 and works with all IMAP servers.
+
+    Per RFC 3501 Section 9 (Formal Syntax), quoted strings must escape
+    backslashes and double-quote characters with a preceding backslash.
+
+    See: https://github.com/ai-zerolab/mcp-email-server/issues/87
+    See: https://www.rfc-editor.org/rfc/rfc3501#section-9
+    """
+    # Per RFC 3501, literal double-quote characters in a quoted string must
+    # be escaped with a backslash. Backslashes themselves must also be escaped.
+    escaped = mailbox.replace("\\", "\\\\").replace('"', r"\"")
+    return f'"{escaped}"'
+
+
+async def _send_imap_id(imap: aioimaplib.IMAP4 | aioimaplib.IMAP4_SSL) -> None:
+    """Send IMAP ID command with fallback for strict servers like 163.com.
+
+    aioimaplib's id() method sends ID command with spaces between parentheses
+    and content (e.g., 'ID ( "name" "value" )'), which some strict IMAP servers
+    like 163.com reject with 'BAD Parse command error'.
+
+    This function first tries the standard id() method, and if it fails,
+    falls back to sending a raw command with correct format.
+
+    See: https://github.com/ai-zerolab/mcp-email-server/issues/85
+    """
+    try:
+        response = await imap.id(name="mcp-email-server", version="1.0.0")
+        if response.result != "OK":
+            # Fallback for strict servers (e.g., 163.com)
+            # Send raw command with correct parenthesis format
+            await imap.protocol.execute(
+                aioimaplib.Command(
+                    "ID",
+                    imap.protocol.new_tag(),
+                    '("name" "mcp-email-server" "version" "1.0.0")',
+                )
+            )
+    except Exception as e:
+        logger.warning(f"IMAP ID command failed: {e!s}")
+
+
 class EmailClient:
     def __init__(self, email_server: EmailServer, sender: str | None = None):
         self.email_server = email_server
@@ -167,7 +213,7 @@ class EmailClient:
 
             # Login and select inbox
             await imap.login(self.email_server.user_name, self.email_server.password)
-            await imap.select(mailbox)
+            await imap.select(_quote_mailbox(mailbox))
             search_criteria = self._build_search_criteria(
                 before, since, subject, from_address=from_address, to_address=to_address
             )
@@ -202,11 +248,8 @@ class EmailClient:
 
             # Login and select inbox
             await imap.login(self.email_server.user_name, self.email_server.password)
-            try:
-                await imap.id(name="mcp-email-server", version="1.0.0")
-            except Exception as e:
-                logger.warning(f"IMAP ID command failed: {e!s}")
-            await imap.select(mailbox)
+            await _send_imap_id(imap)
+            await imap.select(_quote_mailbox(mailbox))
 
             search_criteria = self._build_search_criteria(
                 before, since, subject, from_address=from_address, to_address=to_address
@@ -366,11 +409,8 @@ class EmailClient:
 
             # Login and select inbox
             await imap.login(self.email_server.user_name, self.email_server.password)
-            try:
-                await imap.id(name="mcp-email-server", version="1.0.0")
-            except Exception as e:
-                logger.warning(f"IMAP ID command failed: {e!s}")
-            await imap.select(mailbox)
+            await _send_imap_id(imap)
+            await imap.select(_quote_mailbox(mailbox))
 
             # Fetch the specific email by UID
             data = await self._fetch_email_with_formats(imap, email_id)
@@ -403,19 +443,27 @@ class EmailClient:
         email_id: str,
         attachment_name: str,
         save_path: str,
+        mailbox: str = "INBOX",
     ) -> dict[str, Any]:
-        """Download a specific attachment from an email and save it to disk."""
+        """Download a specific attachment from an email and save it to disk.
+
+        Args:
+            email_id: The UID of the email containing the attachment.
+            attachment_name: The filename of the attachment to download.
+            save_path: The local path where the attachment will be saved.
+            mailbox: The mailbox to search in (default: "INBOX").
+
+        Returns:
+            A dictionary with download result information.
+        """
         imap = self.imap_class(self.email_server.host, self.email_server.port)
         try:
             await imap._client_task
             await imap.wait_hello_from_server()
 
             await imap.login(self.email_server.user_name, self.email_server.password)
-            try:
-                await imap.id(name="mcp-email-server", version="1.0.0")
-            except Exception as e:
-                logger.warning(f"IMAP ID command failed: {e!s}")
-            await imap.select("INBOX")
+            await _send_imap_id(imap)
+            await imap.select(_quote_mailbox(mailbox))
 
             data = await self._fetch_email_with_formats(imap, email_id)
             if not data:
@@ -631,7 +679,7 @@ class EmailClient:
                 try:
                     logger.debug(f"Trying Sent folder: '{folder}'")
                     # Try to select the folder to verify it exists
-                    result = await imap.select(folder)
+                    result = await imap.select(_quote_mailbox(folder))
                     logger.debug(f"Select result for '{folder}': {result}")
 
                     # aioimaplib returns (status, data) where status is a string like 'OK' or 'NO'
@@ -681,7 +729,7 @@ class EmailClient:
             await imap._client_task
             await imap.wait_hello_from_server()
             await imap.login(self.email_server.user_name, self.email_server.password)
-            await imap.select(mailbox)
+            await imap.select(_quote_mailbox(mailbox))
 
             for email_id in email_ids:
                 try:
@@ -809,9 +857,20 @@ class ClassicEmailHandler(EmailHandler):
         email_id: str,
         attachment_name: str,
         save_path: str,
+        mailbox: str = "INBOX",
     ) -> AttachmentDownloadResponse:
-        """Download an email attachment and save it to the specified path."""
-        result = await self.incoming_client.download_attachment(email_id, attachment_name, save_path)
+        """Download an email attachment and save it to the specified path.
+
+        Args:
+            email_id: The UID of the email containing the attachment.
+            attachment_name: The filename of the attachment to download.
+            save_path: The local path where the attachment will be saved.
+            mailbox: The mailbox to search in (default: "INBOX").
+
+        Returns:
+            AttachmentDownloadResponse with download result information.
+        """
+        result = await self.incoming_client.download_attachment(email_id, attachment_name, save_path, mailbox)
         return AttachmentDownloadResponse(
             email_id=result["email_id"],
             attachment_name=result["attachment_name"],
