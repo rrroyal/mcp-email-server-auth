@@ -32,6 +32,7 @@ dependencies = [
 
 [project.scripts]
 mcp-email-server = "mcp_email_server.cli:app"
+vercel = "vercel:app"
 
 [project.urls]
 Homepage = "https://ai-zerolab.github.io/mcp-email-server/"
