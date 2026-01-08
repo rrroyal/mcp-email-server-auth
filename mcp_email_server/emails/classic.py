@@ -40,7 +40,7 @@ def _quote_mailbox(mailbox: str) -> str:
     """
     # Per RFC 3501, literal double-quote characters in a quoted string must
     # be escaped with a backslash. Backslashes themselves must also be escaped.
-    escaped = mailbox.replace("\\", "\\\\").replace('"', r"\"")
+    escaped = mailbox.replace("\\", "\\\\").replace('"', r'\"')
     return f'"{escaped}"'
 
 
@@ -219,7 +219,7 @@ class EmailClient:
                 before, since, subject, from_address=from_address, to_address=to_address
             )
             logger.info(f"Count: Search criteria: {search_criteria}")
-            # Search for messages and count them - use UID SEARCH for consistency
+            # Search for messages and count them - use UID SEARCH for consistency with iCloud
             _, messages = await imap.uid_search(*search_criteria)
             return len(messages[0].split())
         finally:
