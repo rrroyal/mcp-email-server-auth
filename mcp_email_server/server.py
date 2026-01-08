@@ -13,7 +13,6 @@ from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.routing import Mount
 
-from mcp_email_server.config import get_settings
 from mcp_email_server.emails.classic_with_session_mgmt import SessionManagedEmailHandler
 from mcp_email_server.log import logger
 
@@ -68,10 +67,7 @@ def create_starlette(mcp: FastMCP, path: str, mcp_app: Starlette) -> Starlette:
             # Start MCP session manager
             await stack.enter_async_context(mcp.session_manager.run())
             
-            # Register cleanup for session-managed handlers
-            settings = get_settings()
-            if settings.use_session_management:
-                logger.info("Session management is enabled, handlers will be registered for cleanup")
+            logger.info("Session management enabled with hardcoded defaults")
             
             try:
                 yield
