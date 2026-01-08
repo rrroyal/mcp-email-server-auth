@@ -20,7 +20,7 @@ from typing import Any
 import aioimaplib
 import aiosmtplib
 
-from mcp_email_server.config import EmailServer, EmailSettings
+from mcp_email_server.config import EmailServer, EmailSettings, get_settings
 from mcp_email_server.emails import EmailHandler
 from mcp_email_server.emails.models import (
     AttachmentDownloadResponse,
@@ -58,11 +58,26 @@ async def _send_imap_id(imap: aioimaplib.IMAP4 | aioimaplib.IMAP4_SSL) -> None:
 class SessionManagedEmailClient:
     """Email client with automatic session management and retry logic."""
 
-    def __init__(self, email_server: EmailServer, sender: str | None = None):
+    def __init__(
+        self,
+        email_server: EmailServer,
+        sender: str | None = None,
+        max_retries: int | None = None,
+        initial_backoff: float | None = None,
+        max_backoff: float | None = None,
+        session_timeout: int | None = None,
+    ):
         self.email_server = email_server
         self.sender = sender or email_server.user_name
 
         imap_class = aioimaplib.IMAP4_SSL if self.email_server.use_ssl else aioimaplib.IMAP4
+
+        # Get configuration from settings if not provided
+        settings = get_settings()
+        max_retries = max_retries if max_retries is not None else settings.session_max_retries
+        initial_backoff = initial_backoff if initial_backoff is not None else settings.session_initial_backoff
+        max_backoff = max_backoff if max_backoff is not None else settings.session_max_backoff
+        session_timeout = session_timeout if session_timeout is not None else settings.session_timeout
 
         # Initialize session manager for IMAP operations
         self.session_manager = SessionManager(
@@ -71,10 +86,10 @@ class SessionManagedEmailClient:
             port=self.email_server.port,
             username=self.email_server.user_name,
             password=self.email_server.password,
-            max_retries=3,
-            initial_backoff=1.0,
-            max_backoff=30.0,
-            session_timeout=1800,  # 30 minutes
+            max_retries=max_retries,
+            initial_backoff=initial_backoff,
+            max_backoff=max_backoff,
+            session_timeout=session_timeout,
         )
 
         # Health check endpoint
@@ -526,10 +541,24 @@ class SessionManagedEmailHandler(EmailHandler):
 
     def __init__(self, email_settings: EmailSettings):
         self.email_settings = email_settings
-        self.incoming_client = SessionManagedEmailClient(email_settings.incoming)
+        
+        # Get configuration from settings
+        settings = get_settings()
+        
+        self.incoming_client = SessionManagedEmailClient(
+            email_settings.incoming,
+            max_retries=settings.session_max_retries,
+            initial_backoff=settings.session_initial_backoff,
+            max_backoff=settings.session_max_backoff,
+            session_timeout=settings.session_timeout,
+        )
         self.outgoing_client = SessionManagedEmailClient(
             email_settings.outgoing,
             sender=f"{email_settings.full_name} <{email_settings.email_address}>",
+            max_retries=settings.session_max_retries,
+            initial_backoff=settings.session_initial_backoff,
+            max_backoff=settings.session_max_backoff,
+            session_timeout=settings.session_timeout,
         )
         self.save_to_sent = email_settings.save_to_sent
         self.sent_folder_name = email_settings.sent_folder_name
