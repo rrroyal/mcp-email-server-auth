@@ -280,6 +280,13 @@ class Settings(BaseSettings):
     providers: list[ProviderSettings] = []
     db_location: str = CONFIG_PATH.with_name("db.sqlite3").as_posix()
     enable_attachment_download: bool = False
+    
+    # Session management configuration
+    use_session_management: bool = True
+    session_max_retries: int = 3
+    session_initial_backoff: float = 1.0
+    session_max_backoff: float = 30.0
+    session_timeout: int = 1800  # 30 minutes in seconds
 
     model_config = SettingsConfigDict(toml_file=CONFIG_PATH, validate_assignment=True, revalidate_instances="always")
 
@@ -292,6 +299,44 @@ class Settings(BaseSettings):
         if env_enable_attachment is not None:
             self.enable_attachment_download = _parse_bool_env(env_enable_attachment, False)
             logger.info(f"Set enable_attachment_download={self.enable_attachment_download} from environment variable")
+
+        # Check for session management settings from environment variables
+        env_use_session_mgmt = os.getenv("MCP_EMAIL_SERVER_USE_SESSION_MANAGEMENT")
+        if env_use_session_mgmt is not None:
+            self.use_session_management = _parse_bool_env(env_use_session_mgmt, True)
+            logger.info(f"Set use_session_management={self.use_session_management} from environment variable")
+        
+        env_session_max_retries = os.getenv("MCP_EMAIL_SERVER_SESSION_MAX_RETRIES")
+        if env_session_max_retries is not None:
+            try:
+                self.session_max_retries = int(env_session_max_retries)
+                logger.info(f"Set session_max_retries={self.session_max_retries} from environment variable")
+            except ValueError:
+                logger.warning(f"Invalid value for MCP_EMAIL_SERVER_SESSION_MAX_RETRIES: {env_session_max_retries}")
+        
+        env_session_initial_backoff = os.getenv("MCP_EMAIL_SERVER_SESSION_INITIAL_BACKOFF")
+        if env_session_initial_backoff is not None:
+            try:
+                self.session_initial_backoff = float(env_session_initial_backoff)
+                logger.info(f"Set session_initial_backoff={self.session_initial_backoff} from environment variable")
+            except ValueError:
+                logger.warning(f"Invalid value for MCP_EMAIL_SERVER_SESSION_INITIAL_BACKOFF: {env_session_initial_backoff}")
+        
+        env_session_max_backoff = os.getenv("MCP_EMAIL_SERVER_SESSION_MAX_BACKOFF")
+        if env_session_max_backoff is not None:
+            try:
+                self.session_max_backoff = float(env_session_max_backoff)
+                logger.info(f"Set session_max_backoff={self.session_max_backoff} from environment variable")
+            except ValueError:
+                logger.warning(f"Invalid value for MCP_EMAIL_SERVER_SESSION_MAX_BACKOFF: {env_session_max_backoff}")
+        
+        env_session_timeout = os.getenv("MCP_EMAIL_SERVER_SESSION_TIMEOUT")
+        if env_session_timeout is not None:
+            try:
+                self.session_timeout = int(env_session_timeout)
+                logger.info(f"Set session_timeout={self.session_timeout} from environment variable")
+            except ValueError:
+                logger.warning(f"Invalid value for MCP_EMAIL_SERVER_SESSION_TIMEOUT: {env_session_timeout}")
 
         # Check for email configuration from environment variables
         env_emails = EmailSettings.from_env()
