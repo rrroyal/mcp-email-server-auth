@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from mcp_email_server.config import EmailSettings, ProviderSettings, get_settings
-from mcp_email_server.emails.classic import ClassicEmailHandler
 from mcp_email_server.emails.classic_with_session_mgmt import SessionManagedEmailHandler
 
 if TYPE_CHECKING:
@@ -16,13 +15,7 @@ def dispatch_handler(account_name: str) -> EmailHandler:
     if isinstance(account, ProviderSettings):
         raise NotImplementedError
     if isinstance(account, EmailSettings):
-        # Use session management by default unless explicitly disabled
-        use_session_mgmt = getattr(settings, 'use_session_management', True)
-        
-        if use_session_mgmt:
-            return SessionManagedEmailHandler(account)
-        else:
-            # Fallback to classic handler if session management is disabled
-            return ClassicEmailHandler(account)
+        # Always use session management with hardcoded defaults
+        return SessionManagedEmailHandler(account)
 
     raise ValueError(f"Account {account_name} not found, available accounts: {settings.get_accounts()}")
