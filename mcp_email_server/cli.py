@@ -3,10 +3,12 @@ import os
 
 import typer
 from mcp.server.transport_security import TransportSecuritySettings
-
 from mcp_email_server import keyring_store
+import uvicorn
 from mcp_email_server.app import mcp
 from mcp_email_server.config import Settings, delete_settings
+
+from mcp_email_server.server_utils import create_starlette
 
 app = typer.Typer()
 
@@ -132,7 +134,10 @@ def sse(
     port: int = 9557,
 ):
     _configure_http_transport(host, port)
-    mcp.run(transport="sse")
+    mcp.settings.sse_path = "/"
+
+    starlette_app = create_starlette(mcp, "/sse", mcp.sse_app())
+    uvicorn.run(starlette_app, host=host, port=port)
 
 
 @app.command()
@@ -141,7 +146,10 @@ def streamable_http(
     port: int = int(os.environ.get("MCP_PORT", 9557)),
 ):
     _configure_http_transport(host, port)
-    mcp.run(transport="streamable-http")
+    mcp.settings.streamable_http_path = "/"
+
+    starlette_app = create_starlette(mcp, "/mcp", mcp.streamable_http_app())
+    uvicorn.run(starlette_app, host=host, port=port)
 
 
 @app.command()
