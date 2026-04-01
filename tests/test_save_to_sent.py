@@ -142,38 +142,44 @@ class TestEmailSettingsFromEnv:
 
     def test_save_to_sent_from_env_true(self, monkeypatch):
         """Test MCP_EMAIL_SERVER_SAVE_TO_SENT=true."""
-        monkeypatch.setenv("MCP_EMAIL_SERVER_EMAIL_ADDRESS", "test@example.com")
-        monkeypatch.setenv("MCP_EMAIL_SERVER_PASSWORD", "pass")
-        monkeypatch.setenv("MCP_EMAIL_SERVER_IMAP_HOST", "imap.test.com")
-        monkeypatch.setenv("MCP_EMAIL_SERVER_SMTP_HOST", "smtp.test.com")
-        monkeypatch.setenv("MCP_EMAIL_SERVER_SAVE_TO_SENT", "true")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_EMAIL_ADDRESS", "test@example.com")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_PASSWORD", "pass")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_IMAP_HOST", "imap.test.com")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_SMTP_HOST", "smtp.test.com")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_SAVE_TO_SENT", "true")
 
-        result = EmailSettings.from_env()
-        assert result is not None
+        results = EmailSettings.from_env()
+        assert results is not None
+        assert len(results) == 1
+        result = results[0]
         assert result.save_to_sent is True
 
     def test_save_to_sent_from_env_false(self, monkeypatch):
         """Test MCP_EMAIL_SERVER_SAVE_TO_SENT=false."""
-        monkeypatch.setenv("MCP_EMAIL_SERVER_EMAIL_ADDRESS", "test@example.com")
-        monkeypatch.setenv("MCP_EMAIL_SERVER_PASSWORD", "pass")
-        monkeypatch.setenv("MCP_EMAIL_SERVER_IMAP_HOST", "imap.test.com")
-        monkeypatch.setenv("MCP_EMAIL_SERVER_SMTP_HOST", "smtp.test.com")
-        monkeypatch.setenv("MCP_EMAIL_SERVER_SAVE_TO_SENT", "false")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_EMAIL_ADDRESS", "test@example.com")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_PASSWORD", "pass")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_IMAP_HOST", "imap.test.com")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_SMTP_HOST", "smtp.test.com")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_SAVE_TO_SENT", "false")
 
-        result = EmailSettings.from_env()
-        assert result is not None
+        results = EmailSettings.from_env()
+        assert results is not None
+        assert len(results) == 1
+        result = results[0]
         assert result.save_to_sent is False
 
     def test_sent_folder_name_from_env(self, monkeypatch):
         """Test MCP_EMAIL_SERVER_SENT_FOLDER_NAME."""
-        monkeypatch.setenv("MCP_EMAIL_SERVER_EMAIL_ADDRESS", "test@example.com")
-        monkeypatch.setenv("MCP_EMAIL_SERVER_PASSWORD", "pass")
-        monkeypatch.setenv("MCP_EMAIL_SERVER_IMAP_HOST", "imap.test.com")
-        monkeypatch.setenv("MCP_EMAIL_SERVER_SMTP_HOST", "smtp.test.com")
-        monkeypatch.setenv("MCP_EMAIL_SERVER_SENT_FOLDER_NAME", "INBOX.Sent")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_EMAIL_ADDRESS", "test@example.com")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_PASSWORD", "pass")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_IMAP_HOST", "imap.test.com")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_SMTP_HOST", "smtp.test.com")
+        monkeypatch.setenv("MCP_EMAIL_ACCOUNT_SENT_FOLDER_NAME", "INBOX.Sent")
 
-        result = EmailSettings.from_env()
-        assert result is not None
+        results = EmailSettings.from_env()
+        assert results is not None
+        assert len(results) == 1
+        result = results[0]
         assert result.sent_folder_name == "INBOX.Sent"
 
 
