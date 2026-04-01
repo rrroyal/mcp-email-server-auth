@@ -96,7 +96,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+.env*
 .venv
 env/
 venv/
@@ -143,3 +143,6 @@ local/
 config.toml
 .worktrees/
 local-reference/
+
+# Vercel
+.vercel
