@@ -152,6 +152,31 @@ def test_from_env_boolean_parsing_variations(monkeypatch):
     assert result.outgoing.start_ssl is False
 
 
+def test_from_env_many_parses_account_prefix(monkeypatch):
+    monkeypatch.setenv("MCP_EMAIL_WORK_EMAIL_ADDRESS", "work@example.com")
+    monkeypatch.setenv("MCP_EMAIL_WORK_PASSWORD", "work-pass")
+    monkeypatch.setenv("MCP_EMAIL_WORK_IMAP_HOST", "imap.work.example")
+    monkeypatch.setenv("MCP_EMAIL_WORK_SMTP_HOST", "smtp.work.example")
+
+    results = EmailSettings.from_env_many()
+    assert len(results) == 1
+    assert results[0].account_name == "work"
+    assert results[0].email_address == "work@example.com"
+
+
+def test_from_env_many_supports_multiple_accounts(monkeypatch):
+    monkeypatch.setenv("MCP_EMAIL_PERSONAL_EMAIL_ADDRESS", "me@example.com")
+    monkeypatch.setenv("MCP_EMAIL_PERSONAL_PASSWORD", "personal-pass")
+    monkeypatch.setenv("MCP_EMAIL_PERSONAL_IMAP_HOST", "imap.personal.example")
+    monkeypatch.setenv("MCP_EMAIL_WORK_EMAIL_ADDRESS", "work@example.com")
+    monkeypatch.setenv("MCP_EMAIL_WORK_PASSWORD", "work-pass")
+    monkeypatch.setenv("MCP_EMAIL_WORK_IMAP_HOST", "imap.work.example")
+
+    results = EmailSettings.from_env_many()
+    account_names = sorted(item.account_name for item in results)
+    assert account_names == ["personal", "work"]
+
+
 def test_settings_init_no_env(monkeypatch, tmp_path):
     """Test Settings.__init__ when no env vars - covers line 211 false branch."""
     config_file = tmp_path / "empty.toml"

@@ -342,6 +342,110 @@ class EmailSettings(AccountAttributes):
             logger.error(f"Failed to create email settings from environment variables: {e}")
             return None
 
+    # ruff: noqa: C901
+    @classmethod
+    def from_env_many(cls) -> list[EmailSettings]:
+        """Create multiple EmailSettings from MCP_EMAIL_<ACCOUNT>_* variables."""
+        prefix = "MCP_EMAIL_"
+        known_keys = {
+            "ACCOUNT_NAME",
+            "FULL_NAME",
+            "EMAIL_ADDRESS",
+            "USER_NAME",
+            "PASSWORD",
+            "IMAP_HOST",
+            "IMAP_PORT",
+            "IMAP_SSL",
+            "IMAP_START_SSL",
+            "IMAP_VERIFY_SSL",
+            "IMAP_USER_NAME",
+            "IMAP_PASSWORD",
+            "SMTP_HOST",
+            "SMTP_PORT",
+            "SMTP_SSL",
+            "SMTP_START_SSL",
+            "SMTP_VERIFY_SSL",
+            "SMTP_USER_NAME",
+            "SMTP_PASSWORD",
+            "SAVE_TO_SENT",
+            "SENT_FOLDER_NAME",
+        }
+        accounts_dict: dict[str, dict[str, str]] = {}
+
+        for key, value in os.environ.items():
+            if not key.startswith(prefix) or key.startswith("MCP_EMAIL_SERVER_"):
+                continue
+
+            remaining = key[len(prefix) :]
+            parts = remaining.split("_")
+            setting_key: str | None = None
+            account_parts: list[str] = []
+
+            for i in range(len(parts), 0, -1):
+                candidate = "_".join(parts[i - 1 :])
+                if candidate in known_keys:
+                    setting_key = candidate
+                    account_parts = parts[: i - 1]
+                    break
+
+            if setting_key is None:
+                continue
+
+            account_key = "_".join(account_parts) if account_parts else "default"
+            accounts_dict.setdefault(account_key, {})[setting_key] = value
+
+        all_items: list[EmailSettings] = []
+        for account_key, config in accounts_dict.items():
+            email_address = config.get("EMAIL_ADDRESS")
+            password = config.get("PASSWORD")
+            imap_host = config.get("IMAP_HOST")
+            if not email_address:
+                logger.warning(f"Skipping account '{account_key}': missing EMAIL_ADDRESS")
+                continue
+            if not password:
+                logger.warning(f"Skipping account '{account_key}': missing PASSWORD")
+                continue
+            if not imap_host:
+                logger.warning(f"Skipping account '{account_key}': missing IMAP_HOST")
+                continue
+
+            account_name = config.get("ACCOUNT_NAME", account_key.lower())
+            full_name = config.get("FULL_NAME", email_address.split("@")[0])
+            user_name = config.get("USER_NAME", email_address)
+            smtp_host = config.get("SMTP_HOST")
+
+            try:
+                all_items.append(
+                    cls.init(
+                        account_name=account_name,
+                        full_name=full_name,
+                        email_address=email_address,
+                        user_name=user_name,
+                        password=password,
+                        imap_host=imap_host,
+                        imap_port=int(config.get("IMAP_PORT", "993")),
+                        imap_ssl=_parse_bool_env(config.get("IMAP_SSL"), True),
+                        imap_start_ssl=_parse_bool_env(config.get("IMAP_START_SSL"), False),
+                        imap_verify_ssl=_parse_bool_env(config.get("IMAP_VERIFY_SSL"), True),
+                        imap_user_name=config.get("IMAP_USER_NAME", user_name),
+                        imap_password=config.get("IMAP_PASSWORD", password),
+                        smtp_host=smtp_host,
+                        smtp_port=int(config.get("SMTP_PORT", "465")),
+                        smtp_ssl=_parse_bool_env(config.get("SMTP_SSL"), True),
+                        smtp_start_ssl=_parse_bool_env(config.get("SMTP_START_SSL"), False),
+                        smtp_verify_ssl=_parse_bool_env(config.get("SMTP_VERIFY_SSL"), True),
+                        smtp_user_name=config.get("SMTP_USER_NAME", user_name),
+                        smtp_password=config.get("SMTP_PASSWORD", password),
+                        save_to_sent=_parse_bool_env(config.get("SAVE_TO_SENT"), True),
+                        sent_folder_name=config.get("SENT_FOLDER_NAME"),
+                    )
+                )
+                logger.info(f"Loaded email account '{account_name}' from environment variables")
+            except (ValueError, TypeError) as e:
+                logger.error(f"Failed to create email settings from environment variables: {e}")
+
+        return all_items
+
     def masked(self) -> EmailSettings:
         return self.model_copy(
             update={
@@ -457,22 +561,27 @@ class Settings(BaseSettings):
         self._inject_env_account()
 
     def _inject_env_account(self) -> None:
-        env_email = EmailSettings.from_env()
-        if not env_email:
+        env_emails = EmailSettings.from_env_many()
+        legacy_email = EmailSettings.from_env()
+        if legacy_email:
+            env_emails.insert(0, legacy_email)
+
+        if not env_emails:
             return
 
-        existing_account = None
-        for i, email in enumerate(self.emails):
-            if email.account_name == env_email.account_name:
-                existing_account = i
-                break
+        for env_email in env_emails:
+            existing_account = None
+            for i, email in enumerate(self.emails):
+                if email.account_name == env_email.account_name:
+                    existing_account = i
+                    break
 
-        if existing_account is not None:
-            self.emails[existing_account] = env_email
-            logger.info(f"Overriding email account '{env_email.account_name}' with environment variables")
-        else:
-            self.emails.insert(0, env_email)
-            logger.info(f"Added email account '{env_email.account_name}' from environment variables")
+            if existing_account is not None:
+                self.emails[existing_account] = env_email
+                logger.info(f"Overriding email account '{env_email.account_name}' with environment variables")
+            else:
+                self.emails.insert(0, env_email)
+                logger.info(f"Added email account '{env_email.account_name}' from environment variables")
 
     def _pending_keyring_sentinels(self) -> list[tuple[str, str, EmailServer | ProviderSettings]]:
         pending: list[tuple[str, str, EmailServer | ProviderSettings]] = []
