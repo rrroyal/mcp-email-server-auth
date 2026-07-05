@@ -95,6 +95,75 @@ class TestEmailClient:
         assert isinstance(result["date"], datetime)
         assert result["attachments"] == []
 
+    def _make_raw_email(self, body: str) -> bytes:
+        msg = MIMEText(body)
+        msg["Subject"] = "Long"
+        msg["From"] = "sender@example.com"
+        msg["To"] = "recipient@example.com"
+        msg["Date"] = email.utils.formatdate()
+        return msg.as_bytes()
+
+    def test_parse_email_data_truncates_to_max_body_length(self):
+        """A body longer than max_body_length is truncated with the ...[TRUNCATED] marker."""
+        raw_email = self._make_raw_email("x" * 100)
+        client = EmailClient(MagicMock())
+
+        result = client._parse_email_data(raw_email, max_body_length=10)
+        assert result["body"] == "x" * 10 + "...[TRUNCATED]"
+
+    def test_parse_email_data_no_marker_when_body_fits(self):
+        """A body within the window is returned verbatim, with no marker appended."""
+        raw_email = self._make_raw_email("x" * 10)
+        client = EmailClient(MagicMock())
+
+        result = client._parse_email_data(raw_email, max_body_length=10)
+        assert result["body"] == "x" * 10
+
+    def test_parse_email_data_body_offset_paging(self):
+        """body_offset returns a contiguous, non-overlapping window for paging long bodies."""
+        body = "abcdefghij"  # 10 chars
+        raw_email = self._make_raw_email(body)
+        client = EmailClient(MagicMock())
+
+        # First page: chars [0:4], more remains -> marker appended.
+        first = client._parse_email_data(raw_email, body_offset=0, max_body_length=4)
+        assert first["body"] == "abcd...[TRUNCATED]"
+
+        # Second page: chars [4:8], more remains -> marker appended.
+        second = client._parse_email_data(raw_email, body_offset=4, max_body_length=4)
+        assert second["body"] == "efgh...[TRUNCATED]"
+
+        # Final page: chars [8:10], nothing remains -> no marker.
+        third = client._parse_email_data(raw_email, body_offset=8, max_body_length=4)
+        assert third["body"] == "ij"
+
+        # Reassembling the un-marked chunks reproduces the original body.
+        assert body == "abcd" + "efgh" + "ij"
+
+    def test_parse_email_data_offset_past_end_returns_empty(self):
+        """An offset at or beyond the body length yields an empty body and no marker."""
+        raw_email = self._make_raw_email("abc")
+        client = EmailClient(MagicMock())
+
+        result = client._parse_email_data(raw_email, body_offset=10, max_body_length=20000)
+        assert result["body"] == ""
+
+    def test_parse_email_data_rejects_negative_body_offset(self):
+        """body_offset must be non-negative, matching the public tool constraint."""
+        raw_email = self._make_raw_email("abc")
+        client = EmailClient(MagicMock())
+
+        with pytest.raises(ValueError, match="body_offset must be >= 0"):
+            client._parse_email_data(raw_email, body_offset=-1, max_body_length=10)
+
+    def test_parse_email_data_rejects_non_positive_max_body_length(self):
+        """max_body_length must be positive, matching the public tool constraint."""
+        raw_email = self._make_raw_email("abc")
+        client = EmailClient(MagicMock())
+
+        with pytest.raises(ValueError, match="max_body_length must be >= 1"):
+            client._parse_email_data(raw_email, body_offset=0, max_body_length=0)
+
     def test_html_to_text_removes_scripts_and_preserves_readable_text(self):
         """HTML fallback extraction uses an HTML parser for readable plain text."""
         html = """
