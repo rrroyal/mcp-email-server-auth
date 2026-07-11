@@ -234,8 +234,8 @@ async def get_emails_content(
 
 @mcp.tool(
     description=(
-        "List the configured outbound recipient allowlist — the addresses that send_email and "
-        "save_to_mailbox are permitted to send to. Only available when an allowlist is configured."
+        "List the configured recipient allowlist — the addresses that send_email is permitted to "
+        "send to and save_to_mailbox is permitted to address. Only available when an allowlist is configured."
     ),
     visible_if=_has_allowed_recipients,
 )
@@ -329,8 +329,8 @@ async def send_email(
 @mcp.tool(
     description="Compose an email and save it to an IMAP folder (e.g., Drafts). "
     "Same parameters as send_email, but saves instead of sending. "
-    "Default folder is Drafts with \\Draft and \\Seen flags.",
-    visible_if=_has_send_capable_account,
+    "Default folder is Drafts with \\Draft and \\Seen flags. "
+    "Pure IMAP operation — works without SMTP configuration.",
 )
 async def save_to_mailbox(
     account_name: Annotated[str, Field(description="The name of the email account.")],
