@@ -13,6 +13,7 @@ Primary repository areas:
 - `mcp_email_server/ui.py` — Gradio account configuration UI.
 - `tests/` — unit and integration-style tests with mocked mail services.
 - `docs/` — user documentation published with MkDocs.
+- `spec/` — unpublished architecture and product design proposals kept as flat numbered documents.
 
 ## Project Conventions
 
@@ -25,6 +26,15 @@ Primary repository areas:
 - Preserve the distinction between persistent TOML settings and the environment-composited runtime view.
 - Treat credential storage, allowlists, attachment paths, and HTTP transport settings as security-sensitive behavior.
 - Do not log, document, or commit real email credentials, API keys, message contents, or tokens.
+
+## Current Architecture Direction
+
+The proposed target under `spec/` is a local, single-user Email App: MCP uses
+stdio, CLI is the management plane, SQLite stores managed non-secret
+configuration and reusable mail metadata/index state, and a `SecretStore` owns
+credentials. Current TOML, environment, and keyring behavior remains a
+compatibility mode and explicit import source. HTTP, daemon, multi-user, and
+cloud-service design are out of scope for this proposal.
 
 ## Development Workflow
 
@@ -70,10 +80,47 @@ Code and documentation must remain aligned.
 - Update `CONTRIBUTING.md` when contributor or release workflows change.
 - Run `make docs-test` after changing code or documentation that can affect published docs.
 
+## Specification Requirements
+
+`spec/` is the repository's workspace for architecture and product design before
+those decisions become stable implementation or published user behavior.
+
+- Keep `spec/` outside the MkDocs navigation; published, implemented behavior belongs under `docs/`.
+- Maintain `spec/README.md` as the global spec map and keep the current proposal's numbered documents directly under `spec/`.
+- Name detailed documents `NN-topic.md` and order them from system context and boundaries toward workflows, data design, and interfaces.
+- Write specs in English Markdown and use Mermaid for architecture, sequence, state, flow, and ER diagrams.
+- Cross-reference owning specs instead of duplicating contracts across files.
+- Declare each spec `Proposed`, `Accepted`, `Implemented`, or `Superseded`; proposed text must not imply that code already exists.
+- Update the owning spec before or with architecture, workflow, persistence, or security-boundary changes.
+- When a design ships, update its status, implementation/test evidence, and the corresponding user documentation under `docs/`.
+- Keep unresolved product decisions explicit in the owning spec rather than hiding them in implementation plans.
+
+The current Local Email App proposal starts at `spec/README.md`. Continue design
+discussions by updating those numbered documents and their cross-references.
+
+## AnyCap
+
+This project uses [AnyCap](https://anycap.ai) for web research, web crawling,
+multimodal generation and understanding, file sharing, and static page hosting.
+Before using it, read the installed AnyCap skill and verify the locally installed
+CLI and authentication:
+
+```bash
+anycap status
+```
+
+Submit a bug or feature request when a capability fails or is missing:
+
+```bash
+anycap feedback --type bug -m "describe the issue" --request-id <id>
+anycap feedback --type feature -m "describe the use case"
+```
+
 ## Testing Expectations
 
 - Add or update tests for every behavior change and regression fix.
-- Keep tests deterministic and independent of live IMAP, SMTP, or keyring services.
+- Keep unit tests deterministic and independent of live IMAP, SMTP, or keyring services.
+- Run `make test-e2e` for changes to IMAP, SMTP, MCP stdio, configuration loading, attachment handling, or mailbox mutations. This uses synthetic accounts on a loopback-only GreenMail container.
 - Cover both successful operations and security or failure boundaries.
 - When changing configuration, test TOML loading, supported environment overrides, persistence, and migration behavior as applicable.
 - When changing MCP tools, test schemas, responses, conditional visibility, and account-specific error paths.
@@ -87,4 +134,5 @@ Keep related files synchronized:
 - Credential or access-control changes: implementation, tests, `docs/security.md`, and troubleshooting guidance.
 - MCP surface changes: `mcp_email_server/app.py`, tests, and `docs/tools.md`.
 - CLI or transport changes: `mcp_email_server/cli.py`, tests, and `docs/transports.md`.
+- Architecture, workflow, persistence, or security-boundary changes: owning files under `spec/`, tests, and relevant published docs when implemented.
 - Quick-start changes: `README.md`, `docs/getting-started.md`, and `mkdocs.yml` when navigation changes.

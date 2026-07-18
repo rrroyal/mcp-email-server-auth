@@ -97,7 +97,21 @@ make test
 make docs-test
 ```
 
-The CI pipeline runs the test suite against every supported Python version.
+Changes to IMAP, SMTP, MCP stdio, configuration loading, attachment handling, or
+mailbox mutations should also run the Docker-backed black-box baseline:
+
+```bash
+make test-e2e
+```
+
+This command requires Docker, starts an isolated GreenMail instance bound only
+to loopback, and removes it after the test. See the
+[validation guide](https://mcp-email-server.wh1isper.top/validation/) for the
+covered flows and limitations.
+
+The CI pipeline runs the unit test suite against every supported Python version.
+The GreenMail baseline is currently an explicit local check rather than a
+required CI job.
 
 9. Commit your changes and push your branch to GitHub:
 

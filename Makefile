@@ -20,6 +20,11 @@ test: ## Test the code with pytest
 	@echo "🚀 Testing code: Running pytest"
 	@uv run python -m pytest --cov --cov-config=pyproject.toml --cov-report=xml -vv -s
 
+.PHONY: test-e2e
+test-e2e: ## Test the stdio MCP server against local GreenMail SMTP and IMAP services
+	@echo "Testing the stdio MCP server against GreenMail"
+	@dev/greenmail/run-e2e.sh
+
 .PHONY: build
 build: clean-build ## Build wheel file
 	@echo "🚀 Creating wheel file"

@@ -1,0 +1,13 @@
+services:
+  greenmail:
+    image: greenmail/standalone:2.1.11@sha256:53cf220d34e4f2ca9e216f9ae5d9051624780ee510740370b8026915094b87fa
+    environment:
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.smtp
+        -Dgreenmail.setup.test.imap
+        -Dgreenmail.hostname=0.0.0.0
+        -Dgreenmail.users=alice:alice-password@example.test,bob:bob-password@example.test
+        -Dgreenmail.users.login=email
+    ports:
+      - "127.0.0.1::3025"
+      - "127.0.0.1::3143"
